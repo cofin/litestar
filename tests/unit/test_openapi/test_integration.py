@@ -166,7 +166,7 @@ def test_msgspec_schema_generation(create_examples: bool) -> None:
             version="1.0.0",
             create_examples=create_examples,
         ),
-        signature_namespace={"Lookup": Lookup},
+        signature_types=[Lookup],
     ) as client:
         response = client.get("/schema/openapi.json")
         assert response.status_code == HTTP_200_OK
@@ -189,7 +189,7 @@ def test_pydantic_schema_generation(create_examples: bool) -> None:
                     min_length=12,
                     max_length=16,
                     description="A unique identifier",
-                    example="e4eaaaf2-d142-11e1-b3e4-080027620cdd",
+                    example="e4eaaaf2-d142-11e1-b3e4-080027620cdd",  # pyright: ignore
                 ),
             ]
         else:
