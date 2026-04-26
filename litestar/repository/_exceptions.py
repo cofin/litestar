@@ -1,15 +1,18 @@
-from __future__ import annotations  # pragma: no cover
+# pyright: reportUnnecessaryTypeIgnoreComment=false
+# Internal resolver for repository exceptions. Mirrors the historical
+# ``litestar.repository.exceptions`` runtime semantics (advanced_alchemy if
+# available, fallback stubs otherwise) without emitting DeprecationWarning so
+# in-package callers can use these symbols safely.
 
-__all__ = ("ConflictError", "NotFoundError", "RepositoryError")  # pragma: no cover
+try:
+    from advanced_alchemy.exceptions import IntegrityError as ConflictError
+    from advanced_alchemy.exceptions import NotFoundError, RepositoryError
+except ImportError:  # pragma: no cover
+    from litestar.repository._exceptions_stubs import (  # type: ignore[assignment]
+        ConflictError,
+        NotFoundError,
+        RepositoryError,
+    )
 
 
-class RepositoryError(Exception):  # pragma: no cover
-    """Base repository exception type."""
-
-
-class ConflictError(RepositoryError):  # pragma: no cover
-    """Data integrity error."""
-
-
-class NotFoundError(RepositoryError):  # pragma: no cover
-    """An identity does not exist."""
+__all__ = ("ConflictError", "NotFoundError", "RepositoryError")
