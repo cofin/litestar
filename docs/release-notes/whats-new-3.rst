@@ -344,37 +344,3 @@ startup.
 .. seealso::
 
     :ref:`usage/middleware/creating-middleware:Configuration constraints`
-
-
-Deprecation of ``litestar.repository``
---------------------------------------
-
-The ``litestar.repository`` module — abstract async/sync repository bases,
-filter datastructures, exception types, the on-app-init handler, and the
-generic mock repository — is deprecated in 3.0 and removed before 3.0.0 GA.
-Every public symbol now emits :class:`DeprecationWarning` on access.
-
-Migrate to ``advanced_alchemy`` directly:
-
-- ``litestar.repository.filters.*`` → ``advanced_alchemy.filters.*`` (same names).
-- ``litestar.repository.exceptions.NotFoundError`` /
-  ``RepositoryError`` → ``advanced_alchemy.exceptions.NotFoundError`` /
-  ``RepositoryError``.
-- ``litestar.repository.exceptions.ConflictError`` →
-  ``advanced_alchemy.exceptions.IntegrityError`` (re-aliased as
-  ``ConflictError`` if the name is preferred).
-- ``litestar.repository.AbstractAsyncRepository`` /
-  ``AbstractSyncRepository`` — no direct replacement; adopt
-  ``advanced_alchemy.repository.SQLAlchemyAsyncRepository`` /
-  ``SQLAlchemySyncRepository`` instead.
-- ``litestar.repository.handlers.on_app_init`` /
-  ``signature_namespace_values`` — no direct replacement; use
-  ``advanced_alchemy.extensions.litestar.SQLAlchemyPlugin``, which already
-  registers the filter signature namespace.
-- ``litestar.repository.testing.*`` (the generic mock repository) — no
-  replacement; rewrite tests against a real repository or use the testing
-  utilities provided by ``advanced_alchemy``.
-
-The runtime objects backing the shim already resolve to
-``advanced_alchemy``-installed when available, so the migration is purely an
-import-path change.

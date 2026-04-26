@@ -117,28 +117,6 @@
         Remove the deprecated ``litestar.contrib.prometheus`` module. Code still using imports
         from this module should switch to using ``litestar.plugins.prometheus``.
 
-    .. change:: Deprecate ``litestar.repository`` in favor of ``advanced_alchemy``
-        :type: feature
-        :issue: 4721
-
-        Deprecate every public symbol under ``litestar.repository.*`` (the abstract async/sync
-        repository bases, filter datastructures, exception types, the on-app-init handler, and
-        the generic mock repository). Each access now emits :class:`DeprecationWarning` naming
-        the ``advanced_alchemy`` replacement.
-
-        Migration:
-
-        - ``litestar.repository.filters.*`` → ``advanced_alchemy.filters.*``
-        - ``litestar.repository.exceptions.{NotFoundError, RepositoryError}`` → ``advanced_alchemy.exceptions.{NotFoundError, RepositoryError}``
-        - ``litestar.repository.exceptions.ConflictError`` → ``advanced_alchemy.exceptions.IntegrityError``
-        - ``litestar.repository.{AbstractAsyncRepository, AbstractSyncRepository}`` → adopt ``advanced_alchemy.repository.{SQLAlchemyAsyncRepository, SQLAlchemySyncRepository}`` directly (no abstract base)
-        - ``litestar.repository.handlers.*`` → use ``advanced_alchemy.extensions.litestar.SQLAlchemyPlugin`` (which already registers the filter signature namespace)
-        - ``litestar.repository.testing.*`` → no replacement; rewrite tests against a real repository or the testing utilities provided by ``advanced_alchemy``
-
-        The runtime objects backing the shim already resolve to ``advanced_alchemy`` when it is
-        installed, so the migration is purely an import-path change. Physical removal of the
-        module lands in a follow-up PR before 3.0.0 GA. Finishes #3299.
-
 
     .. change:: Make ``AsyncTestClient`` async-native
         :type: feature
