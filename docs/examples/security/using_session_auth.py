@@ -8,7 +8,8 @@ from litestar.connection import ASGIConnection
 from litestar.exceptions import NotAuthorizedException
 from litestar.middleware.session.server_side import ServerSideSessionBackend, ServerSideSessionConfig
 from litestar.openapi.config import OpenAPIConfig
-from litestar.security.session_auth import SessionAuth
+from litestar.security import SecurityPlugin
+from litestar.security.session import SessionMechanism
 from litestar.stores.memory import MemoryStore
 
 
@@ -41,7 +42,7 @@ MOCK_DB: dict[str, User] = {}
 memory_store = MemoryStore()
 
 
-# The SessionAuth class requires a handler callable
+# The SessionMechanism class requires a handler callable
 # that takes the session dictionary, and returns the
 # 'User' instance correlating to it.
 #
@@ -106,7 +107,7 @@ async def signup(data: UserCreatePayload, request: Request[Any, Any, Any]) -> Us
 def get_user(request: Request[User, dict[Literal["user_id"], str], Any]) -> Any:
     # because this route requires authentication, we can access
     # `request.user`, which is the authenticated user returned
-    # by the 'retrieve_user_handler' function we passed to SessionAuth.
+    # by the 'retrieve_user_handler' function we passed to SessionMechanism.
     return request.user
 
 
@@ -116,20 +117,17 @@ openapi_config = OpenAPIConfig(
     version="1.0.0",
 )
 
-session_auth = SessionAuth[User, ServerSideSessionBackend](
+session_mechanism = SessionMechanism[User, ServerSideSessionBackend](
     retrieve_user_handler=retrieve_user_handler,
     # we must pass a config for a session backend.
     # all session backends are supported
     session_backend_config=ServerSideSessionConfig(),
-    # exclude any URLs that should not have authentication.
-    # We exclude the documentation URLs, signup and login.
-    exclude=["/login", "/signup", "/schema"],
 )
 
 
-# We initialize the app instance, passing to it the 'session_auth.on_app_init' and the 'openapi_config'.
+# We initialize the app instance, passing the SecurityPlugin and the OpenAPI config.
 app = Litestar(
     route_handlers=[login, signup, get_user],
-    on_app_init=[session_auth.on_app_init],
+    plugins=[SecurityPlugin([session_mechanism], exclude=["/login", "/signup", "/schema"])],
     openapi_config=openapi_config,
 )

@@ -4,7 +4,7 @@ import dataclasses
 from collections.abc import Sequence  # noqa: TC003
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, get_type_hints
 
 import jwt
 import msgspec
@@ -12,6 +12,7 @@ import msgspec
 from litestar.exceptions import ImproperlyConfiguredException, NotAuthorizedException
 
 if TYPE_CHECKING:
+    from datetime import timedelta
     from typing import Self
 
 __all__ = (
@@ -92,6 +93,7 @@ class Token:
         issuer: str | Sequence[str] | None = None,
         audience: str | Sequence[str] | None = None,
         options: JWTDecodeOptions | None = None,
+        leeway: float | timedelta = 0,
     ) -> Any:
         """Decode and verify the JWT and return its payload"""
         return jwt.decode(
@@ -101,6 +103,7 @@ class Token:
             issuer=issuer,
             audience=audience,
             options=options,  # type: ignore[arg-type]
+            leeway=leeway,
         )
 
     @classmethod
@@ -115,6 +118,7 @@ class Token:
         verify_exp: bool = True,
         verify_nbf: bool = True,
         strict_audience: bool = False,
+        leeway: float | timedelta = 0,
     ) -> Self:
         """Decode a passed in token string and return a Token instance.
 
@@ -137,6 +141,8 @@ class Token:
                 a single value, and not a list of values, and matches ``audience``
                 exactly. Requires the value passed to the ``audience`` to be a sequence
                 of length 1
+            leeway: Time in seconds, or a :class:`datetime.timedelta`, allowed when
+                validating time based claims.
 
         Returns:
             A decoded Token instance.
@@ -165,32 +171,61 @@ class Token:
                 audience = audience[0]
 
         try:
-            payload = cls.decode_payload(
-                encoded_token=encoded_token,
-                secret=secret,
-                algorithms=[algorithm],
-                audience=audience,
-                issuer=issuer,
-                options=options,
-            )
+            decode_kwargs: dict[str, Any] = {
+                "encoded_token": encoded_token,
+                "secret": secret,
+                "algorithms": [algorithm],
+                "audience": audience,
+                "issuer": issuer,
+                "options": options,
+            }
+            if leeway:
+                decode_kwargs["leeway"] = leeway
+            payload = cls.decode_payload(**decode_kwargs)
             # msgspec can do these conversions as well, but to keep backwards
             # compatibility, we do it ourselves, since the datetime parsing works a
             # little bit different there
             payload["exp"] = cls._decode_datetime_claim(payload, "exp")
             payload["iat"] = cls._decode_datetime_claim(payload, "iat")
-            cls._require_claim(payload, "sub")
+            sub = cls._require_claim(payload, "sub")
+            if not isinstance(sub, str) or not sub:
+                raise NotAuthorizedException("Invalid token")
             extra_fields = payload.keys() - {f.name for f in dataclasses.fields(cls)}
             extras = payload.setdefault("extras", {})
             for key in extra_fields:
                 extras[key] = payload.pop(key)
-            return msgspec.convert(payload, cls, strict=False)
+            return cls._convert_payload(payload)
         except (
             KeyError,
             jwt.exceptions.InvalidTokenError,
             ImproperlyConfiguredException,
             msgspec.ValidationError,
+            TypeError,
+            ValueError,
         ) as e:
             raise NotAuthorizedException("Invalid token") from e
+
+    @classmethod
+    def _convert_payload(cls, payload: dict[str, Any]) -> Self:
+        type_hints = get_type_hints(cls)
+        values: dict[str, Any] = {}
+        for token_field in dataclasses.fields(cls):
+            if not token_field.init:
+                continue
+            if token_field.name in payload:
+                field_type = type_hints.get(token_field.name, token_field.type)
+                values[token_field.name] = msgspec.convert(payload[token_field.name], field_type, strict=False)
+            elif token_field.default is not dataclasses.MISSING:
+                values[token_field.name] = token_field.default
+            elif token_field.default_factory is not dataclasses.MISSING:
+                values[token_field.name] = token_field.default_factory()
+            else:
+                raise KeyError(token_field.name)
+
+        token = cls.__new__(cls)
+        for key, value in values.items():
+            setattr(token, key, value)
+        return token
 
     @classmethod
     def _require_claim(cls, payload: dict[str, Any], claim: str) -> Any:

@@ -289,11 +289,13 @@ def test_custom_decode_payload() -> None:
             issuer: str | Sequence[str] | None = None,
             audience: str | Sequence[str] | None = None,
             options: JWTDecodeOptions | None = None,
+            leeway: float | timedelta = 0,
         ) -> Any:
             payload = super().decode_payload(
                 encoded_token=encoded_token,
                 secret=secret,
                 algorithms=algorithms,
+                leeway=leeway,
             )
             payload["sub"] = "some-random-value"
             return payload

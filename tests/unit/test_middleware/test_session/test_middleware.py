@@ -31,7 +31,9 @@ def test_integration(session_backend_config: "BaseBackendConfig") -> None:
         if request.method == HttpMethod.DELETE:
             request.clear_session()
         else:
-            request.session["username"] = "moishezuchmir"
+            session = request.session
+            assert session is not Empty
+            session["username"] = "moishezuchmir"
         return None
 
     with create_test_client(route_handlers=[session_handler], middleware=[session_backend_config.middleware]) as client:

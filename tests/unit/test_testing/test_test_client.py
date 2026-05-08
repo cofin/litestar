@@ -13,6 +13,7 @@ from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED, HTTP_204_NO_CON
 from litestar.stores.base import Store
 from litestar.testing import AsyncTestClient, WebSocketTestSession, create_async_test_client, create_test_client
 from litestar.testing.websocket_test_session import AsyncWebSocketTestSession
+from litestar.types import Empty
 
 if TYPE_CHECKING:
     from litestar.types import (
@@ -78,7 +79,9 @@ def test_test_client_set_session_data(
 
     @get(path="/test")
     async def get_session_data(request: Request) -> dict[str, Any]:
-        return request.session
+        session = request.session
+        assert session is not Empty
+        return session
 
     app = Litestar(route_handlers=[get_session_data], middleware=[session_backend_config.middleware])
 
@@ -109,7 +112,9 @@ def test_test_client_get_session_data(
 
     @post(path="/test")
     async def set_session_data(request: Request) -> None:
-        request.session.update(session_data)
+        session = request.session
+        assert session is not Empty
+        session.update(session_data)
 
     app = Litestar(
         route_handlers=[set_session_data], middleware=[session_backend_config.middleware], stores={"session": store}
@@ -132,7 +137,9 @@ async def test_test_client_set_session_data_async(
 
     @get(path="/test")
     async def get_session_data(request: Request) -> dict[str, Any]:
-        return request.session
+        session = request.session
+        assert session is not Empty
+        return session
 
     app = Litestar(route_handlers=[get_session_data], middleware=[session_backend_config.middleware])
 
@@ -154,7 +161,9 @@ async def test_test_client_get_session_data_async(
 
     @post(path="/test")
     async def set_session_data(request: Request) -> None:
-        request.session.update(session_data)
+        session = request.session
+        assert session is not Empty
+        session.update(session_data)
 
     app = Litestar(
         route_handlers=[set_session_data], middleware=[session_backend_config.middleware], stores={"session": store}

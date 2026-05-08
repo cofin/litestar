@@ -1,4 +1,3 @@
-from litestar.security.session_auth.auth import SessionAuth
-from litestar.security.session_auth.middleware import SessionAuthMiddleware
+from __future__ import annotations
 
-__all__ = ("SessionAuth", "SessionAuthMiddleware")
+__all__ = ()

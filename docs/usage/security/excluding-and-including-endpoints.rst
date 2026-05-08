@@ -1,102 +1,83 @@
-Excluding and including endpoints
+=================================
+Excluding and Selecting Endpoints
 =================================
 
-Please make sure you read the :doc:`security backends documentation </usage/security/security-backends>` first for
-learning how to set up a security backend. This section focuses on configuring the ``exclude`` rule for those backends.
+:class:`~litestar.security.SecurityPlugin` can skip authentication for paths, HTTP
+methods, or individual route handlers. It can also pin a route handler to one named
+mechanism when an application has multiple mechanisms configured.
 
-There are multiple ways for including or excluding endpoints in the authentication flow. The default rules are
-configured in the ``Auth`` object used (subclass of :class:`~.security.base.AbstractSecurityConfig`). The examples
-below use :class:`~.security.session_auth.auth.SessionAuth` but it is the same for :class:`~.security.jwt.auth.JWTAuth`
-and :class:`~.security.jwt.auth.JWTCookieAuth`.
+Path exclusions
+---------------
 
-Excluding routes
---------------------
-
-The ``exclude`` argument takes a :class:`string <str>` or :class:`list` of :class:`strings <str>` that are interpreted
-as regex patterns matched against the full path. Because the patterns are not implicitly anchored, a pattern like
-``/schema`` would match *any* path containing ``/schema``, not just paths that start with it. To match only paths that
-start with a given prefix, anchor the pattern with ``^``. For example, the configuration below would apply
-authentication to all endpoints except those where the route starts with ``/login``, ``/signup``, or ``/schema``.
-Thus, one does not have to exclude ``/schema/swagger`` as well — it is covered by the ``^/schema`` pattern.
+The ``exclude`` argument accepts a regex string or list of regex strings matched against
+the full path. Patterns are not implicitly anchored. Use ``^`` when a pattern should
+only match the beginning of the path.
 
 .. danger::
 
-    Passing ``/`` will disable authentication for all routes, since, as a regex, it
-    matches *every* path.
+    Passing ``/`` disables authentication for every route because it matches every path.
 
 .. code-block:: python
 
-    session_auth = SessionAuth[User, ServerSideSessionBackend](
-        retrieve_user_handler=retrieve_user_handler,
-        # we must pass a config for a session backend.
-        # all session backends are supported
-        session_backend_config=ServerSideSessionConfig(),
-        # exclude any URLs that should not have authentication.
-        # We exclude the documentation URLs, signup and login.
+    security = SecurityPlugin(
+        [session_mechanism],
         exclude=[r"^/login", r"^/signup", r"^/schema"],
     )
-    ...
 
-Including routes
-----------------
 
-Since the exclusion rules are evaluated as regex, it is possible to pass a rule that inverts exclusion - meaning, no
-path but the one specified in the pattern will be protected by authentication. In the example below, only endpoints
-under the ``/secured`` route will require authentication - all other routes do not.
+HTTP method exclusions
+----------------------
+
+``OPTIONS`` requests are excluded by default. Override ``exclude_http_methods`` when an
+application needs a different policy.
 
 .. code-block:: python
 
-    ...
-    session_auth = SessionAuth[User, ServerSideSessionBackend](
-        retrieve_user_handler=retrieve_user_handler,
-        # we must pass a config for a session backend.
-        # all session backends are supported
-        session_backend_config=ServerSideSessionConfig(),
-        # exclude any URLs that should not have authentication.
-        # We exclude the documentation URLs, signup and login.
-        exclude=[r"^(?!.*\/secured$).*$"],
+    security = SecurityPlugin(
+        [jwt_mechanism],
+        exclude_http_methods=["OPTIONS", "HEAD"],
     )
-    ...
 
-Exclude from auth
---------------------
-Sometimes, you might want to apply authentication to all endpoints under a route but a few selected. In this case, you
-can pass ``exclude_from_auth=True`` to the route handler as shown below.
 
-.. code-block:: python
+Route-level exclusions
+----------------------
 
-    ...
-    @get("/secured")
-    def secured_route() -> Any:
-        ...
-
-    @get("/unsecured", exclude_from_auth=True)
-    def unsecured_route() -> Any:
-        ...
-    ...
-
-You can set an alternative option key in the security configuration, e.g., you can use ``no_auth`` instead of
-``exclude_from_auth``.
+Set ``exclude_from_auth=True`` on a route handler to skip authentication for that route.
+The same option also removes plugin-generated operation security from the OpenAPI
+operation.
 
 .. code-block:: python
 
-    ...
     @get("/secured")
-    def secured_route() -> Any:
-        ...
+    def secured_route() -> dict[str, str]:
+        return {"status": "secured"}
 
-    @get("/unsecured", no_auth=True)
-    def unsecured_route() -> Any:
-        ...
 
-    session_auth = SessionAuth[User, ServerSideSessionBackend](
-        retrieve_user_handler=retrieve_user_handler,
-        # we must pass a config for a session backend.
-        # all session backends are supported
-        session_backend_config=ServerSideSessionConfig(),
-        # exclude any URLs that should not have authentication.
-        # We exclude the documentation URLs, signup and login.
-        exclude=[r"^/login", r"^/signup", r"^/schema"],
-        exclude_opt_key="no_auth"  # default value is `exclude_from_auth`
-    )
-    ...
+    @get("/public", exclude_from_auth=True)
+    def public_route() -> dict[str, str]:
+        return {"status": "public"}
+
+
+Selecting one mechanism
+-----------------------
+
+When multiple mechanisms are configured, the default is first-match composition. To
+force one route to use one configured mechanism, set ``opt={"auth_mechanism": "<name>"}``.
+
+.. code-block:: python
+
+    security = SecurityPlugin([session_mechanism, jwt_mechanism, api_key_mechanism])
+
+
+    @get("/browser/profile", opt={"auth_mechanism": "session"})
+    def browser_profile() -> dict[str, str]:
+        return {"status": "session only"}
+
+
+    @get("/api/profile", opt={"auth_mechanism": "jwt"})
+    def api_profile() -> dict[str, str]:
+        return {"status": "jwt only"}
+
+
+Unknown mechanism names are rejected during application initialization so deployment
+does not silently fall back to the wrong authentication policy.

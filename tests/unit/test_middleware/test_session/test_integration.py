@@ -9,7 +9,8 @@ from litestar.middleware.session.server_side import (
     ServerSideSessionBackend,
     ServerSideSessionConfig,
 )
-from litestar.security.session_auth import SessionAuth
+from litestar.security import SecurityPlugin
+from litestar.security.session import SessionMechanism
 from litestar.status_codes import HTTP_204_NO_CONTENT
 from litestar.stores.memory import MemoryStore
 from litestar.testing import create_test_client
@@ -55,17 +56,16 @@ def get_user(request: Request[User, dict[Literal["user_id"], str], Any]) -> Any:
     return request.user
 
 
-session_auth = SessionAuth[User, ServerSideSessionBackend](
+session_mechanism = SessionMechanism[User, ServerSideSessionBackend](
     retrieve_user_handler=retrieve_user_handler,
     session_backend_config=ServerSideSessionConfig(),
-    exclude=["/login", "/schema"],
 )
 
 
-def test_options_request_with_session_auth() -> None:
+def test_options_request_with_session_mechanism() -> None:
     with create_test_client(
         route_handlers=[login, get_user],
-        on_app_init=[session_auth.on_app_init],
+        plugins=[SecurityPlugin([session_mechanism], exclude=["/login", "/schema"])],
     ) as client:
         response = client.options(get_user.paths.pop())
         assert response.status_code == HTTP_204_NO_CONTENT

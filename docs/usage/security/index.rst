@@ -14,4 +14,5 @@ authentication and authorization.
     guards
     excluding-and-including-endpoints
     jwt
+    provider-cookbook
     secret-datastructures

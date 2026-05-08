@@ -53,11 +53,11 @@ While it's good practice to keep middlewares decoupled from another, there are t
 where implicit coupling is unavoidable due to the nature of the functionality provided
 by the middlewares.
 
-For example a caching middleware and an authentication middleware
+For example a caching middleware and a session middleware
 can produce very different results depending on the order they are applied in; Assuming
-a naive caching middleware that does not take authentication state into account, if it's
-applied *before* the authentication middleware, it might cache an authenticated response
-and serve it to the next, unauthenticated request.
+a naive caching middleware that does not take session state into account, if it's
+applied *before* the session middleware, it might cache a session-specific response
+and serve it to the next request.
 
 Especially when applications grow larger and more complex, it can become difficult to
 keep track of all these implicit couplings and dependencies, or downright impossible if
@@ -75,7 +75,7 @@ Using constraints, the example given above might be solved like this:
 
 Here, we specify that every instance of ``CachingMiddleware`` must come after any
 instance of
-:class:`~litestar.middleware.authentication.AbstractAuthenticationMiddleware`.
+:class:`~litestar.middleware.session.base.SessionMiddleware`.
 
 
 .. tip::

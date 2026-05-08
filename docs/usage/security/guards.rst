@@ -36,8 +36,9 @@ handler function:
 
 Here, the ``admin_user_guard`` guard checks if the user is an admin.
 
-The connection has a `user` object attached to it thanks to the JWT middleware, see :doc:`authentication </usage/security/jwt>`
-and in particular the :meth:`JWTAuth.retrieve_user_handler` method.
+The connection has a ``user`` object attached to it thanks to the configured authentication mechanism, see
+:doc:`authentication </usage/security/jwt>` and in particular the ``retrieve_user_handler`` passed to
+:class:`~litestar.security.jwt.JWTMechanism`.
 
 Thus, only an admin user would be able to send a post request to the ``create_user`` handler.
 

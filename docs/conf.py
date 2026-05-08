@@ -104,6 +104,7 @@ nitpick_ignore = [
     (PY_CLASS, "abc.Collection"),
     (PY_CLASS, "advanced_alchemy.utils.dataclass.Empty"),
     (PY_CLASS, "jinja2.environment.Environment"),
+    (PY_CLASS, "jwt.api_jwk.PyJWK"),
     (PY_CLASS, "pydantic.BaseModel"),
     (PY_CLASS, "pydantic.generics.GenericModel"),
     (PY_CLASS, "pydantic.main.BaseModel"),
@@ -199,6 +200,17 @@ nitpick_ignore = [
     (PY_CLASS, "advanced_alchemy.base.BigIntAuditBase"),
     (PY_CLASS, "advanced_alchemy.extensions.litestar.plugins.SQLAlchemySerializationPlugin"),
     (PY_CLASS, "advanced_alchemy.extensions.litestar.plugins.SQLAlchemyInitPlugin"),
+    # historical release note references to APIs removed from the 3.0 docs build
+    (PY_CLASS, "litestar.security.session_auth.middleware.SessionAuthMiddleware"),
+    (PY_CLASS, "middleware.authentication.AbstractAuthenticationMiddleware"),
+    (PY_CLASS, "middleware.authentication.AuthenticationResult"),
+    (PY_CLASS, "security.AbstractSecurityConfig"),
+    (PY_FUNC, "BaseJWTAuth.login"),
+    (PY_METH, "BaseJWTAuth.create_token"),
+    # security generics and type aliases surfaced by autodoc
+    (PY_CLASS, "TokenT"),
+    (PY_CLASS, "ValidationErrorHook"),
+    (PY_OBJ, "litestar.security.jwt.mechanism.TokenT"),
 ]
 
 nitpick_ignore_regex = [

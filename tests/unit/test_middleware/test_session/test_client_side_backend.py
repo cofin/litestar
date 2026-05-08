@@ -20,6 +20,7 @@ from litestar.middleware.session.client_side import (
 )
 from litestar.serialization import encode_json
 from litestar.testing import RequestFactory, create_test_client
+from litestar.types import Empty
 from litestar.types.asgi_types import HTTPResponseStartEvent
 from tests.helpers import RANDOM
 
@@ -113,12 +114,16 @@ def test_set_session_cookies(cookie_session_backend_config: "CookieBackendConfig
     def handler(request: Request) -> None:
         # Create large session by keeping it multiple of CHUNK_SIZE. This will split the session into multiple cookies.
         # Then you only need to check if number of cookies set are more than the multiplying number.
-        request.session.update(create_session(size=CHUNK_SIZE * chunks_multiplier))
+        session = request.session
+        assert session is not Empty
+        session.update(create_session(size=CHUNK_SIZE * chunks_multiplier))
 
     @get(path="/test_short_cookie")
     def handler_short_cookie(request: Request) -> None:
         # Check the naming of a cookie that's short enough to not get broken into chunks
-        request.session.update(create_session())
+        session = request.session
+        assert session is not Empty
+        session.update(create_session())
 
     with create_test_client(
         route_handlers=[handler],
@@ -144,7 +149,9 @@ def test_session_cookie_name_matching(cookie_session_backend_config: "CookieBack
 
     @get("/")
     def handler(request: Request) -> dict[str, Any]:
-        return request.session
+        session = request.session
+        assert session is not Empty
+        return session
 
     @post("/")
     def set_session_data(request: Request) -> None:
@@ -179,9 +186,13 @@ def test_load_session_cookies_and_expire_previous(
         nonlocal _session
         if mutate:
             # Modify the session, this will overwrite the previously set session cookies.
-            request.session.update(create_session())
-            _session = request.session
-        return request.session
+            session = request.session
+            assert session is not Empty
+            session.update(create_session())
+            _session = session
+        session = request.session
+        assert session is not Empty
+        return session
 
     ciphertext = cookie_session_middleware.backend.dump_data(_session)
 

@@ -7,6 +7,7 @@ Release notes
     :titlesonly:
 
     whats-new-3
+    migration_guide_3
     whats-new-2
     changelog
     2.x Changelog <https://docs.litestar.dev/2/release-notes/changelog.html>

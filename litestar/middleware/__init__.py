@@ -1,7 +1,3 @@
-from litestar.middleware.authentication import (
-    AbstractAuthenticationMiddleware,
-    AuthenticationResult,
-)
 from litestar.middleware.base import (
     AbstractMiddleware,
     ASGIMiddleware,
@@ -11,9 +7,7 @@ from litestar.middleware.base import (
 
 __all__ = (
     "ASGIMiddleware",
-    "AbstractAuthenticationMiddleware",
     "AbstractMiddleware",
-    "AuthenticationResult",
     "DefineMiddleware",
     "MiddlewareProtocol",
 )

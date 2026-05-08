@@ -1,88 +1,97 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
-import anyio
-
-from litestar import Litestar, MediaType, Request, Response, WebSocket, get, websocket
+from litestar import Litestar, Request, WebSocket, get, websocket
 from litestar.connection import ASGIConnection
-from litestar.datastructures import State
-from litestar.di import Provide
-from litestar.exceptions import NotAuthorizedException, NotFoundException
-from litestar.middleware import AbstractAuthenticationMiddleware, AuthenticationResult
-from litestar.middleware.base import DefineMiddleware
+from litestar.exceptions import NotAuthorizedException
+from litestar.handlers import BaseRouteHandler
+from litestar.openapi.spec import Components, SecurityRequirement, SecurityScheme
+from litestar.security import AuthenticationContext, AuthenticationResult, SecurityPlugin
 
 API_KEY_HEADER = "X-API-KEY"
 
 TOKEN_USER_DATABASE = {"1": "user_authorized"}
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MyUser:
     name: str
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class MyToken:
     api_key: str
 
 
-class CustomAuthenticationMiddleware(AbstractAuthenticationMiddleware):
-    async def authenticate_request(self, connection: ASGIConnection) -> AuthenticationResult:
-        """Given a request, parse the request api key stored in the header and retrieve the user correlating to the token from the DB"""
+@dataclass(slots=True)
+class CustomAPIKeyMechanism:
+    name: ClassVar[str] = "custom-api-key"
 
-        # retrieve the auth header
+    async def authenticate(
+        self,
+        connection: ASGIConnection[Any, Any, Any, Any],
+        context: AuthenticationContext,
+    ) -> AuthenticationResult | None:
+        del context
         auth_header = connection.headers.get(API_KEY_HEADER)
         if not auth_header:
-            raise NotAuthorizedException()
+            return None
 
-        # this would be a database call
         token = MyToken(api_key=auth_header)
-        user = MyUser(name=TOKEN_USER_DATABASE.get(token.api_key))
-        if not user.name:
+        user_name = TOKEN_USER_DATABASE.get(token.api_key)
+        if user_name is None:
             raise NotAuthorizedException()
-        return AuthenticationResult(user=user, auth=token)
+        return AuthenticationResult(user=MyUser(name=user_name), auth=token)
+
+    def openapi_components(self) -> Components:
+        return Components(
+            security_schemes={
+                "CustomAPIKey": SecurityScheme(
+                    type="apiKey",
+                    name=API_KEY_HEADER,
+                    security_scheme_in="header",
+                    description="Custom API key authentication.",
+                )
+            }
+        )
+
+    def openapi_security_requirement(self) -> SecurityRequirement:
+        return {"CustomAPIKey": []}
 
 
-@get("/")
-def my_http_handler(request: Request[MyUser, MyToken, State]) -> None:
-    user = request.user  # correctly typed as MyUser
-    auth = request.auth  # correctly typed as MyToken
-    assert isinstance(user, MyUser)
-    assert isinstance(auth, MyToken)
+def requires_user(connection: ASGIConnection[Any, Any, Any, Any], _route_handler: BaseRouteHandler) -> None:
+    if "user" not in connection.scope:
+        raise NotAuthorizedException()
 
 
-@websocket("/")
-async def my_ws_handler(socket: WebSocket[MyUser, MyToken, State]) -> None:
-    user = socket.user  # correctly typed as MyUser
-    auth = socket.auth  # correctly typed as MyToken
-    assert isinstance(user, MyUser)
-    assert isinstance(auth, MyToken)
+@get("/", guards=[requires_user], sync_to_thread=False)
+def my_http_handler(request: Request[MyUser, MyToken, Any]) -> dict[str, str]:
+    user = request.user
+    auth = request.auth
+    return {"user": user.name, "api_key": auth.api_key}
 
 
-@get(path="/", exclude_from_auth=True)
-async def site_index() -> Response:
-    """Site index"""
-    exists = await anyio.Path("index.html").exists()
-    if exists:
-        async with await anyio.open_file(anyio.Path("index.html")) as file:
-            content = await file.read()
-            return Response(content=content, status_code=200, media_type=MediaType.HTML)
-    raise NotFoundException("Site index was not found")
+@websocket("/ws", guards=[requires_user])
+async def my_ws_handler(socket: WebSocket[MyUser, MyToken, Any]) -> None:
+    await socket.accept()
+    await socket.send_json({"user": socket.user.name, "api_key": socket.auth.api_key})
+    await socket.close()
 
 
-async def my_dependency(request: Request[MyUser, MyToken, State]) -> Any:
-    user = request.user  # correctly typed as MyUser
-    auth = request.auth  # correctly typed as MyToken
-    assert isinstance(user, MyUser)
-    assert isinstance(auth, MyToken)
+@get(path="/public", exclude_from_auth=True, sync_to_thread=False)
+def site_index() -> dict[str, str]:
+    return {"status": "public"}
 
 
-# you can optionally exclude certain paths from authentication.
-# the following excludes all routes mounted at or under `/schema*`
-auth_mw = DefineMiddleware(CustomAuthenticationMiddleware, exclude="schema")
+async def my_dependency(request: Request[MyUser, MyToken, Any]) -> dict[str, str]:
+    return {"user": request.user.name, "api_key": request.auth.api_key}
+
+
+custom_auth = CustomAPIKeyMechanism()
 
 app = Litestar(
     route_handlers=[site_index, my_http_handler, my_ws_handler],
-    middleware=[auth_mw],
-    dependencies={"some_dependency": Provide(my_dependency)},
+    plugins=[SecurityPlugin([custom_auth])],
 )

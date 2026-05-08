@@ -1,7 +1,7 @@
-JWT Security Backends
-=====================
+JWT Security
+============
 
-Litestar offers optional JWT based security backends. To use these make sure to install the
+Litestar offers optional JWT based security mechanisms. To use these make sure to install the
 `pyjwt <https://pyjwt.readthedocs.io/en/stable/>`_ and `cryptography <https://github.com/pyca/cryptography>`_
 packages, or simply install Litestar with the ``jwt``
 `extra <https://packaging.python.org/en/latest/specifications/dependency-specifiers/#extras>`_:
@@ -11,49 +11,60 @@ packages, or simply install Litestar with the ``jwt``
 
     pip install 'litestar[jwt]'
 
-:class:`JWT Auth <.security.jwt.JWTAuth>` Backend
--------------------------------------------------
+:class:`JWT Mechanism <.security.jwt.JWTMechanism>`
+---------------------------------------------------
 
-This is the base JWT Auth backend. You can read about its particular API in the :class:`~.security.jwt.JWTAuth`.
-It sends the JWT token using a header - and it expects requests to send the JWT token using the same header key.
+This is the base JWT mechanism. It sends the JWT token using a header and expects requests to send the JWT token using
+the same header key.
 
 .. dropdown:: Click to see the code
 
     .. literalinclude:: /examples/security/jwt/using_jwt_auth.py
         :language: python
-        :caption: Using JWT Auth
+        :caption: Using JWT Mechanism
 
-:class:`JWT Cookie Auth <.security.jwt.JWTCookieAuth>` Backend
---------------------------------------------------------------
+:class:`JWT Cookie Mechanism <.security.jwt.JWTCookieMechanism>`
+----------------------------------------------------------------
 
-This backend inherits from the :class:`~.security.jwt.JWTAuth` backend, with the difference being
-that instead of using a header for the JWT Token, it uses a cookie.
+This mechanism accepts the normal bearer header or a configured cookie.
 
 .. dropdown:: Click to see the code
 
     .. literalinclude:: /examples/security/jwt/using_jwt_cookie_auth.py
         :language: python
-        :caption: Using JWT Cookie Auth
+        :caption: Using JWT Cookie Mechanism
 
-:class:`OAuth2 Bearer <.security.jwt.auth.OAuth2PasswordBearerAuth>` Password Flow
-----------------------------------------------------------------------------------
+Bearer token response
+---------------------
 
-The :class:`~.security.jwt.auth.OAuth2PasswordBearerAuth` backend inherits from the :class:`~.security.jwt.JWTCookieAuth`
-backend. It works similarly to the :class:`~.security.jwt.JWTCookieAuth` backend, but is meant to be used for
-OAuth 2.0 Bearer password flows.
+Login handlers can return the token in the response body for clients that expect a bearer token payload.
 
 .. dropdown:: Click to see the code
 
     .. literalinclude:: /examples/security/jwt/using_oauth2_password_bearer.py
        :language: python
-       :caption: Using OAUTH2 Bearer Password
+       :caption: Returning a bearer token
+
+OIDC providers
+--------------
+
+JWT mechanisms can validate tokens against an OIDC provider. If ``jwks_uri`` is not set explicitly, the mechanism uses
+the provider's OpenID discovery document to find the JWKS endpoint.
+
+.. literalinclude:: /examples/security/jwt/using_oidc_provider.py
+   :language: python
+   :caption: Using an OIDC provider
+
+
+For Auth0, Keycloak, Microsoft Entra ID, AWS ALB, and Cloudflare Access examples, see
+:doc:`/usage/security/provider-cookbook`.
 
 
 Using a custom token class
 --------------------------
 
 The token class used can be customized with arbitrary fields, by creating a subclass of
-:class:`~.security.jwt.Token`, and specifying it on the backend:
+:class:`~.security.jwt.Token`, and specifying it on the mechanism:
 
 .. literalinclude:: /examples/security/jwt/custom_token_cls.py
    :language: python
@@ -75,7 +86,7 @@ Verifying issuer and audience
 -----------------------------
 
 To verify the JWT ``iss`` (*issuer*) and ``aud`` (*audience*) claim, a list of accepted
-issuers or audiences can bet set on the authentication backend. When a JWT is decoded,
+issuers or audiences can be set on the JWT mechanism. When a JWT is decoded,
 the issuer or audience on the token is compared to the list of accepted issuers /
 audiences. If the value in the token does not match any value in the respective list,
 a :exc:`NotAuthorizedException` will be raised, returning a response with a

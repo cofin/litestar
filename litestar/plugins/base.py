@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, Union, cast, runtime_checkable
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
     from inspect import Signature
 
     from click import Group
@@ -16,7 +16,8 @@ if TYPE_CHECKING:
     from litestar.app import Litestar
     from litestar.config.app import AppConfig
     from litestar.dto import AbstractDTO
-    from litestar.openapi.spec import Reference, Schema
+    from litestar.handlers.http_handlers import HTTPRouteHandler
+    from litestar.openapi.spec import Components, Reference, Schema, SecurityRequirement
     from litestar.routes import BaseRoute
     from litestar.typing import FieldDefinition
 
@@ -25,6 +26,7 @@ __all__ = (
     "DIPlugin",
     "InitPlugin",
     "InitPluginProtocol",
+    "OpenAPIContributorPlugin",
     "OpenAPISchemaPlugin",
     "PluginProtocol",
     "PluginRegistry",
@@ -276,9 +278,37 @@ class OpenAPISchemaPlugin(abc.ABC):
         return False
 
 
+class OpenAPIContributorPlugin:
+    """Plugin hook for contributing OpenAPI document metadata after routes are resolved."""
+
+    __slots__ = ()
+
+    def get_openapi_components(self) -> Components | None:
+        """Return OpenAPI components contributed by this plugin.
+
+        Returns:
+            Components to merge into the generated OpenAPI document, or ``None``.
+        """
+        return None
+
+    def get_openapi_security_requirements(
+        self, route_handler: HTTPRouteHandler
+    ) -> Sequence[SecurityRequirement] | None:
+        """Return OpenAPI security requirements contributed for a route handler.
+
+        Args:
+            route_handler: The resolved HTTP route handler being rendered into an OpenAPI operation.
+
+        Returns:
+            Security requirements to append to the operation, or ``None``.
+        """
+        return None
+
+
 PluginProtocol = Union[
     CLIPlugin,
     InitPluginProtocol,
+    OpenAPIContributorPlugin,
     OpenAPISchemaPlugin,
     ReceiveRoutePlugin,
     SerializationPlugin,
@@ -299,12 +329,14 @@ class PluginRegistry:
         "_plugins_by_type": None,
         "_plugins": None,
         "_get_plugins_of_type": None,
+        "openapi_contributors": "Plugins that implement OpenAPIContributorPlugin",
     }
 
     def __init__(self, plugins: list[PluginProtocol]) -> None:
         self._plugins_by_type = {type(p): p for p in plugins}
         self._plugins = frozenset(plugins)
         self.init = tuple(p for p in plugins if isinstance(p, InitPluginProtocol))
+        self.openapi_contributors = tuple(p for p in plugins if isinstance(p, OpenAPIContributorPlugin))
         self.openapi = tuple(p for p in plugins if isinstance(p, OpenAPISchemaPlugin))
         self.receive_route = tuple(p for p in plugins if isinstance(p, ReceiveRoutePlugin))
         self.serialization = tuple(p for p in plugins if isinstance(p, SerializationPlugin))

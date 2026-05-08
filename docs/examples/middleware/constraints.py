@@ -1,7 +1,7 @@
-from litestar.middleware.authentication import AbstractAuthenticationMiddleware
 from litestar.middleware.base import ASGIMiddleware
 from litestar.middleware.constraints import MiddlewareConstraints
+from litestar.middleware.session.base import SessionMiddleware
 
 
 class CachingMiddleware(ASGIMiddleware):
-    constraints = MiddlewareConstraints(after=(AbstractAuthenticationMiddleware,))
+    constraints = MiddlewareConstraints(after=(SessionMiddleware,))

@@ -251,11 +251,12 @@ class ASGIConnection(Generic[HandlerT, UserT, AuthT, StateT]):
         return cast("UserT", self.scope["user"])
 
     @property
-    def session(self) -> dict[str, Any]:
+    def session(self) -> dict[str, Any] | EmptyType:
         """Return the session for this connection if a session was previously set in the ``Scope``
 
         Returns:
-            A dictionary representing the session value - if existing.
+            A dictionary representing the session value - if existing, otherwise ``Empty`` when the session has been
+            cleared.
 
         Raises:
             ImproperlyConfiguredException: if session is not set in scope.
@@ -265,7 +266,7 @@ class ASGIConnection(Generic[HandlerT, UserT, AuthT, StateT]):
                 "'session' is not defined in scope, install a SessionMiddleware to set it"
             )
 
-        return cast("dict[str, Any]", self.scope["session"])
+        return cast("dict[str, Any] | EmptyType", self.scope["session"])
 
     def set_session(self, value: dict[str, Any] | DataContainerType | EmptyType) -> None:
         """Set the session in the connection's ``Scope``.

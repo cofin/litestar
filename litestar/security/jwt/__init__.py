@@ -1,23 +1,12 @@
-from litestar.security.jwt.auth import (
-    BaseJWTAuth,
-    JWTAuth,
-    JWTCookieAuth,
-    OAuth2Login,
-    OAuth2PasswordBearerAuth,
-)
-from litestar.security.jwt.middleware import (
-    JWTAuthenticationMiddleware,
-    JWTCookieAuthenticationMiddleware,
-)
+from litestar.security.jwt.jwks import JWKSCache, JWKSError, OIDCProvider
+from litestar.security.jwt.mechanism import JWTCookieMechanism, JWTMechanism
 from litestar.security.jwt.token import Token
 
 __all__ = (
-    "BaseJWTAuth",
-    "JWTAuth",
-    "JWTAuthenticationMiddleware",
-    "JWTCookieAuth",
-    "JWTCookieAuthenticationMiddleware",
-    "OAuth2Login",
-    "OAuth2PasswordBearerAuth",
+    "JWKSCache",
+    "JWKSError",
+    "JWTCookieMechanism",
+    "JWTMechanism",
+    "OIDCProvider",
     "Token",
 )

@@ -4,7 +4,8 @@ from typing import Any
 
 from litestar import Litestar, Request, get
 from litestar.connection import ASGIConnection
-from litestar.security.jwt import JWTAuth, Token
+from litestar.security import SecurityPlugin
+from litestar.security.jwt import JWTMechanism, Token
 
 
 @dataclasses.dataclass
@@ -17,13 +18,13 @@ class User:
     id: str
 
 
-async def retrieve_user_handler(token: CustomToken, connection: ASGIConnection) -> User:
+async def retrieve_user_handler(token: CustomToken, _connection: ASGIConnection[Any, Any, Any, Any]) -> User:
     return User(id=token.sub)
 
 
 TOKEN_SECRET = secrets.token_hex()
 
-jwt_auth = JWTAuth[User](
+jwt_auth = JWTMechanism[User, CustomToken](
     token_secret=TOKEN_SECRET,
     retrieve_user_handler=retrieve_user_handler,
     token_cls=CustomToken,
@@ -35,4 +36,4 @@ def handler(request: Request[User, CustomToken, Any]) -> dict[str, Any]:
     return {"id": request.user.id, "token_flag": request.auth.token_flag}
 
 
-app = Litestar(middleware=[jwt_auth.middleware])
+app = Litestar(route_handlers=[handler], plugins=[SecurityPlugin([jwt_auth])])
